@@ -28,7 +28,7 @@ Issues and considerations
 ### Implementation
 
 This sample will lead you to provision the following infrastructure:
-[Infra](outbox-sample-infra.png)
+![Infra](outbox-sample-infra.png)
 
 
 ## Security
