@@ -1,6 +1,7 @@
 **/.vscode/
 **/.mvn/
 **/.idea/
+**/.DS_Store
 
 infra/*.js
 infra/!jest.config.js
