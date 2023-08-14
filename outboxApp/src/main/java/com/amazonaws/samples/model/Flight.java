@@ -16,7 +16,7 @@ import java.util.Date;
 @Getter
 @Setter
 @AllArgsConstructor
-@NoArgsConstructor
+@NoArgsConstructor(force = true)
 public class Flight extends BaseEntity {
 
     @NotBlank(message = "Departure airport cannot be blank")
@@ -27,17 +27,10 @@ public class Flight extends BaseEntity {
 
     @NotNull
     @Temporal(TemporalType.TIMESTAMP)
-    private Date departureDate;
+    private Date departureDateTime;
 
     @NotNull
     @Temporal(TemporalType.TIMESTAMP)
-    private Timestamp departureTime;
+    private Date arrivalDateTime;
 
-    @NotNull
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date arrivalDate;
-
-    @NotNull
-    @Temporal(TemporalType.TIMESTAMP)
-    private Timestamp arrivalTime;
 }

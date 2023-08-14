@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,6 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @AllArgsConstructor
+@Log4j2
 public class FlightController {
     final FlightRepository flightRepository;
     final OutboxRepository outboxRepository;
@@ -28,9 +30,11 @@ public class FlightController {
     @Transactional
     public Flight createFlight(@Valid @RequestBody Flight flight) {
         Flight savedFlight = flightRepository.save(flight);
+        log.info(savedFlight.getId().toString() + " " + savedFlight.getCreatedOn().toString());
         JsonNode flightPayload = objectMapper.convertValue(flight, JsonNode.class);
         FlightOutbox outboxEvent = new FlightOutbox(flight.getId().toString(), FlightOutbox.EventType.FLIGHT_BOOKED, flightPayload);
-        outboxRepository.save(outboxEvent);
+        FlightOutbox savedOutboxEvent = outboxRepository.save(outboxEvent);
+        log.info(savedOutboxEvent.getId().toString() + " " + savedOutboxEvent.getCreatedOn().toString());
         return savedFlight;
     }
 }

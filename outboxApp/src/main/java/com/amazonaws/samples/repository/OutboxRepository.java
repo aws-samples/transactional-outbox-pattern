@@ -10,6 +10,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface OutboxRepository extends JpaRepository<FlightOutbox, Long> {
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Page<FlightOutbox> findAllByOrderByIdAsc(Pageable pageable);
+
 }

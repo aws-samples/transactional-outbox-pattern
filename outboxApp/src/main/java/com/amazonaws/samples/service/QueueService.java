@@ -37,7 +37,7 @@ public class QueueService {
 
     @Scheduled(fixedDelayString = "${sqs.polling_ms}")
     public void forwardEventsToSQS() {
-        List<FlightOutbox> entities = outboxRepository.findAllByOrderByIdAsc(Pageable.ofSize(batchSize)).toList();
+        List<FlightOutbox> entities = outboxRepository.findAll();
         if (!entities.isEmpty()) {
             GetQueueUrlRequest getQueueRequest = GetQueueUrlRequest.builder()
                     .queueName(sqsQueueName)

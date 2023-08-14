@@ -3,9 +3,12 @@ package com.amazonaws.samples.model;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import java.util.Date;
 
 @Entity
 @Table(name = "flightsOutbox")
@@ -17,8 +20,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 public class FlightOutbox extends BaseEntity {
 
     public enum EventType {
-        FLIGHT_BOOKED,
-        FLIGHT_CANCELED
+        FLIGHT_BOOKED
     }
 
     private final String aggregateId;
