@@ -1,0 +1,23 @@
+**/.vscode/
+**/.mvn/
+**/.idea/
+
+infra/*.js
+infra/!jest.config.js
+infra/*.d.ts
+infra/node_modules
+
+# CDK asset staging directory
+infra/.cdk.staging
+infra/cdk.out
+
+outboxApp/HELP.md
+outboxApp/target/
+outboxApp/!.mvn/wrapper/maven-wrapper.jar
+outboxApp/!**/src/main/**/target/
+outboxApp/!**/src/test/**/target/
+
+### IntelliJ IDEA ###
+outboxApp/*.iws
+outboxApp/*.iml
+outboxApp/*.ipr
