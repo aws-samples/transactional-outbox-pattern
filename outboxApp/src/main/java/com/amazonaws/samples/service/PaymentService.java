@@ -6,6 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.sqs.SqsClient;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
@@ -39,6 +40,12 @@ public class PaymentService {
         // Print out the messages
         for (Message m : messages) {
             log.info("Flight event received: " + m.body() + ". Processing payment.");
+            DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder()
+                    .queueUrl(sqsQueueUrl)
+                    .receiptHandle(m.receiptHandle())
+                    .build();
+            sqsClient.deleteMessage(deleteMessageRequest);
         }
+
     }
 }

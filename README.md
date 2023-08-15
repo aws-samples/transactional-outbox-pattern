@@ -30,6 +30,15 @@ Issues and considerations
 This sample will lead you to provision the following infrastructure:
 ![Infra](outbox-sample-infra.png)
 
+**Provisioning the infrastructure**
+
+- Make sure you have the latest version of the `cdk` installed (with all its dependencies)
+- Clone the repository
+- Enter the infra folder
+- Make sure you have the proper credentials to deploy infrastructure in AWS
+- Make sure the region in `infra-stack.ts` is the same as the region you plan to deploy your stack in
+- Type the following commands: `cdk init` and `cdk deploy`
+- After about 5-10 mins, the deployment will complete and it will output the ALB URL
 
 ## Security
 

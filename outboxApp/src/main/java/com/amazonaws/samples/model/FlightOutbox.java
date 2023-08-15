@@ -13,15 +13,19 @@ import java.util.Date;
 @Entity
 @Table(name = "flightsOutbox")
 @EntityListeners(AuditingEntityListener.class)
-@AllArgsConstructor
+@RequiredArgsConstructor
 @NoArgsConstructor(force = true)
 @Getter
 @Setter
-public class FlightOutbox extends BaseEntity {
+public class FlightOutbox {
 
     public enum EventType {
         FLIGHT_BOOKED
     }
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "outbox_seq")
+    private Long id;
 
     private final String aggregateId;
 

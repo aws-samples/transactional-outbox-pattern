@@ -19,7 +19,7 @@ export class InfraStack extends cdk.Stack {
       maxAzs: 2,
       natGateways: 1
     })
-    const flightQueue = new sqs.Queue(this, 'FlightQueue');
+    const flightQueue = new sqs.Queue(this, 'FlightQueue', {queueName: 'flightQueue.fifo'});
     const sqsRole = new iam.Role(this, 'sqsFullRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
       description: 'Role for ECS Tasks to interact with SQS',

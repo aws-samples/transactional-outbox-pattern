@@ -37,7 +37,7 @@ public class QueueService {
 
     @Scheduled(fixedDelayString = "${sqs.polling_ms}")
     public void forwardEventsToSQS() {
-        List<FlightOutbox> entities = outboxRepository.findAll();
+        List<FlightOutbox> entities = outboxRepository.findAllByOrderByIdAsc(Pageable.ofSize(batchSize)).toList();
         if (!entities.isEmpty()) {
             GetQueueUrlRequest getQueueRequest = GetQueueUrlRequest.builder()
                     .queueName(sqsQueueName)
@@ -45,9 +45,9 @@ public class QueueService {
             String queueUrl = this.sqsClient.getQueueUrl(getQueueRequest).queueUrl();
             List<SendMessageBatchRequestEntry> messageEntries = new ArrayList<>();
             entities.forEach(entity -> messageEntries.add(SendMessageBatchRequestEntry.builder()
-                    .id(entity.getAggregateId())
-                    .messageAttributes(Map.of("eventType",
-                            MessageAttributeValue.builder().dataType("String").stringValue(entity.getEventType().toString()).build()))
+                    .id(entity.getId().toString())
+                    .messageGroupId(entity.getAggregateId())
+                    .messageDeduplicationId(entity.getId().toString())
                     .messageBody(entity.getPayload().toString())
                     .build())
             );

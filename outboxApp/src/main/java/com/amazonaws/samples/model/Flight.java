@@ -15,14 +15,18 @@ import java.util.Date;
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
-@AllArgsConstructor
 @NoArgsConstructor(force = true)
-public class Flight extends BaseEntity {
+public class Flight {
+    @Id
+    @GeneratedValue
+    private Long id;
 
     @NotBlank(message = "Departure airport cannot be blank")
+    @NotNull
     private String departureAirport;
 
     @NotBlank(message = "Destination airport cannot be blank")
+    @NotNull
     private String arrivalAirport;
 
     @NotNull
