@@ -1,5 +1,5 @@
 # Step : Test and packages
-FROM maven:3.8.3-amazoncorretto-17 as build
+FROM --platform=linux/arm64 maven:3.8.3-amazoncorretto-17 as build
 WORKDIR /build
 COPY pom.xml .
 RUN mvn dependency:go-offline
@@ -9,7 +9,7 @@ RUN mvn package -DskipTests
 RUN mkdir -p target/dependency && (cd target/dependency; jar -xf ../*.jar)
 
 # Step : Package image
-FROM amazoncorretto:17
+FROM --platform=linux/arm64 amazoncorretto:17
 # COPY --from=build /build/target/jpademo-*.jar /app/app.jar
 # ENTRYPOINT ["java","-noverify","-XX:TieredStopAtLevel=1","-jar", "/app/app.jar"]
 

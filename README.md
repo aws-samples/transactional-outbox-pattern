@@ -32,13 +32,14 @@ This sample will lead you to provision the following infrastructure:
 
 **Provisioning the infrastructure**
 
-- Make sure you have the latest version of the `cdk` installed (with all its dependencies)
+- Make sure you have the latest version of the `cdk` installed (with all its dependencies) and `docker` installed on the machine/server you plan to run these commands on
 - Clone the repository
 - Enter the infra folder
 - Make sure you have the proper credentials to deploy infrastructure in AWS
-- Make sure the region in `infra-stack.ts` is the same as the region you plan to deploy your stack in
-- Type the following commands: `cdk init` and `cdk deploy`
+- Make sure the region in `infra-stack.ts` (line 92) is the same as the region you plan to deploy your stack in
+- Type the following commands: `cdk bootstrap` (if you have never deployed a cdk project in this account/region) and `cdk deploy`
 - After about 5-10 mins, the deployment will complete and it will output the ALB URL
+- You can append `swagger-ui.html` to the ALB URL to access the Swagger page
 
 ## Security
 

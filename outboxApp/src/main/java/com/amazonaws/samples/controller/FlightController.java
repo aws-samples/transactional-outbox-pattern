@@ -30,11 +30,9 @@ public class FlightController {
     @Transactional
     public Flight createFlight(@Valid @RequestBody Flight flight) {
         Flight savedFlight = flightRepository.save(flight);
-        log.info(savedFlight.getId().toString());
         JsonNode flightPayload = objectMapper.convertValue(flight, JsonNode.class);
         FlightOutbox outboxEvent = new FlightOutbox(flight.getId().toString(), FlightOutbox.EventType.FLIGHT_BOOKED, flightPayload);
-        FlightOutbox savedOutboxEvent = outboxRepository.save(outboxEvent);
-        log.info(savedOutboxEvent.getId().toString() + " " + savedOutboxEvent.getAggregateId() + " " + savedOutboxEvent.getPayload().toString());
+        outboxRepository.save(outboxEvent);
         return savedFlight;
     }
 }
