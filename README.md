@@ -28,14 +28,14 @@ Issues and considerations
 ## Implementation
 
 This sample will lead you to provision the following infrastructure:
-![Infra](outbox-sample-infra.png)
+![Infra](img/outbox-sample-infra.png)
 
 ### Prerequisites
 
--	An AWS account
--	An AWS user with AdministratorAccess (see the instructions on the AWS Identity and Access Management (IAM) console)
--	Access to the following AWS services: Elastic Load Balancing, Amazon ECS, Amazon Aurora, Amazon SQS
--	Docker, Java 17 and NodeJS installed
+- An AWS account.
+- An AWS user with AdministratorAccess (see the instructions on the AWS Identity and Access Management (IAM) console).
+- Access to the following AWS services: Elastic Load Balancing, Amazon ECS, Amazon Aurora, Amazon SQS.
+- Docker, Java 17 and NodeJS installed. Docker client running.
 
 ### Deploy using CDK
 
@@ -51,11 +51,35 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app. Make sure the
 ```shell
 $ npm install -g aws-cdk
 $ cd infra
+$ npm install
 $ cdk bootstrap
 $ cdk synth
 $ cdk deploy
 ```
-After about 5-10 mins, the deployment will complete and it will output the Application Load Balancer URL. You can append `swagger-ui.html` to the ALB URL to access the Swagger page.
+After about 5-10 mins, the deployment will complete and it will output the Application Load Balancer URL. 
+![StackOutput](img/outbox-pattern-stack-output.png)
+
+## Usage
+
+You can append `swagger-ui/index.html` to the ALB URL to access the Swagger page:
+![SwaggerPage](img/outbox-pattern-swagger-page.png)
+
+Let's book a first flight ticket from Paris to London:
+![FirstFlight](img/outbox-pattern-first-flight.png)
+
+After a few seconds, the flight event is process by the Payment service:
+![FlightProcessed](img/outbox-pattern-first-flight-processed.png)
+
+Let's book a second flight ticket:
+![SecondFlight](img/outbox-pattern-second-flight.png)
+
+Now let's say the queue becomes unavailable (for the sake of this example we have simply added a resource policy to deny access):
+![QueueUnavailable](img/outbox-pattern-queue-unavailable.png)
+
+The event will remain in the outbox because the system has been unable to fully process the flight booking:
+![FlightOutbox](img/outbox-pattern-event.png)
+
+Subsequent to that, several strategies can be adopted depending on the requirements of the system (raise an alert, wait for the queue to become available again, retry with backoff, etc.).
 
 ## Security
 
