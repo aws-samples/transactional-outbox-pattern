@@ -2,6 +2,7 @@ package com.amazonaws.samples.service;
 
 import com.amazonaws.samples.model.FlightOutbox;
 import com.amazonaws.samples.repository.OutboxRepository;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;

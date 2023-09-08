@@ -1,6 +1,6 @@
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-
+import * as logs from "aws-cdk-lib/aws-logs"
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as ecs_patterns from "aws-cdk-lib/aws-ecs-patterns";
@@ -8,6 +8,7 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 
 export class InfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -15,24 +16,62 @@ export class InfraStack extends cdk.Stack {
     super(scope, id, props);
 
     // Our VPC
+    const cwLogs = new logs.LogGroup(this, 'Log', {
+      logGroupName: '/aws/vpc/flowlogs',
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
     const vpc = new ec2.Vpc(this, "outbox-vpc", {
       maxAzs: 2,
-      natGateways: 1
+      natGateways: 1,
+      flowLogs: {
+        's3': {
+          destination: ec2.FlowLogDestination.toCloudWatchLogs(cwLogs),
+          trafficType: ec2.FlowLogTrafficType.ALL,
+        }
+      }
+    });
+
+    // Our Queue
+    const flightDLQ = new sqs.Queue(this, 'FlightDLQ', {
+      queueName: 'flightDLQ.fifo'
+    });
+    const flightQueue = new sqs.Queue(this, 'FlightQueue',
+      {
+        queueName: 'flightQueue.fifo',
+        deadLetterQueue: {
+          maxReceiveCount: 10,
+          queue: flightDLQ
+        }
+      }
+    );
+    const sqsPolicy = new iam.Policy(this, 'SQSpolicy', {
+      statements: [new iam.PolicyStatement({
+        actions: [
+          'sqs:SendMessage',
+          'sqs:SendMessageBatch',
+          'sqs:ReceiveMessage',
+          'sqs:DeleteMessage',
+          'sqs:DeleteMessageBatch',
+          'sqs:GetQueueUrl',
+          'sqs:ChangeMessageVisibility',
+          'sqs:GetQueueAttributes',
+          'sqs:ListQueues',
+        ],
+        //actions: ['sqs:*'],
+        resources: [flightQueue.queueArn],
+      })],
     })
-    const flightQueue = new sqs.Queue(this, 'FlightQueue', {queueName: 'flightQueue.fifo'});
     const sqsRole = new iam.Role(this, 'sqsFullRole', {
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
       description: 'Role for ECS Tasks to interact with SQS',
-      managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName(
-            'AmazonSQSFullAccess',
-        ),
-      ],
     });
+    sqsRole.attachInlinePolicy(sqsPolicy);
+
     //Our ECS Fargate Cluster in this VPC
     const outboxEcsCluster = new ecs.Cluster(this, "outbox-ecs", {
       vpc,
-      clusterName: "outboxEcsCluster"
+      clusterName: "outboxEcsCluster",
+      containerInsights: true,
     })
     //Our Database
     const pgPassword = new secretsmanager.Secret(this, 'DBSecret', {
@@ -45,7 +84,10 @@ export class InfraStack extends cdk.Stack {
       vpc,
       description: "outbox database security group"
     })
-    dbSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(5432));
+    const appSecurityGroup = new ec2.SecurityGroup(this, 'appsg', {
+      vpc,
+      description: "outbox app security group"
+    })
     const auroraServerlessRds = new rds.CfnDBCluster(this, "aurora-serverless", {
       engine: "aurora-postgresql",
       engineMode: "serverless",
@@ -64,14 +106,17 @@ export class InfraStack extends cdk.Stack {
       storageEncrypted: true,
       deletionProtection: false,
       backupRetentionPeriod: 14,
+      enableHttpEndpoint: true,
 
       scalingConfiguration: {
         autoPause: true,
         secondsUntilAutoPause: 900,
         minCapacity: 2,
         maxCapacity: 4
-      }
+      },
     })
+    auroraServerlessRds.applyRemovalPolicy(cdk.RemovalPolicy.SNAPSHOT);
+
     //Our application in AWS Fargate + ALB
     const outboxApp = new ecs_patterns.ApplicationLoadBalancedFargateService(this, 'outbox svc', {
       cluster: outboxEcsCluster,
@@ -95,8 +140,10 @@ export class InfraStack extends cdk.Stack {
           'pgpassword': ecs.Secret.fromSecretsManager(pgPassword)
         },
         taskRole: sqsRole
-      }
-    })
+      },
+      securityGroups: [appSecurityGroup]
+    });
+    dbSecurityGroup.addIngressRule(appSecurityGroup, ec2.Port.tcp(5432));
     //customize healthcheck on ALB
     outboxApp.targetGroup.configureHealthCheck({
       "port": 'traffic-port',
