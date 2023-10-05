@@ -8,12 +8,17 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import * as ssm from 'aws-cdk-lib/aws-ssm';
+import { aws_wafv2 as wafv2 } from 'aws-cdk-lib';
 
 export class InfraStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
 
     super(scope, id, props);
+
+    // Parameters
+    const myPublicIP = new cdk.CfnParameter(this, "myPublicIP", {
+      type: "String",
+      description: "The public IP used to access the API."});
 
     // Our VPC
     const cwLogs = new logs.LogGroup(this, 'Log', {
@@ -29,6 +34,42 @@ export class InfraStack extends cdk.Stack {
           trafficType: ec2.FlowLogTrafficType.ALL,
         }
       }
+    });
+
+    // WebACL and WAF definition (to protect our ALB)
+    const allowListIPSet = new wafv2.CfnIPSet(this, "AllowListIPSet", {
+      name: "AllowListIPSet",
+      addresses: [myPublicIP.valueAsString],
+      ipAddressVersion: "IPV4",
+      scope: "REGIONAL",
+    });
+    const allowListIPSetRuleProperty: wafv2.CfnWebACL.RuleProperty = {
+      priority: 0,
+      name: "AllowListIPSet-Rule",
+      action: {
+        allow: {},
+      },
+      statement: {
+        ipSetReferenceStatement: {
+          arn: allowListIPSet.attrArn,
+        },
+      },
+      visibilityConfig: {
+        cloudWatchMetricsEnabled: true,
+        metricName: "AllowListIPSet-Rule",
+        sampledRequestsEnabled: true,
+      },
+    };
+    const webACL = new wafv2.CfnWebACL(this, "WebAcl", {
+      name: "WebAcl",
+      defaultAction: { block: {} },
+      scope: "REGIONAL",
+      visibilityConfig: {
+        cloudWatchMetricsEnabled: true,
+        metricName: "WebAcl",
+        sampledRequestsEnabled: true,
+      },
+      rules: [allowListIPSetRuleProperty],
     });
 
     // Our Queue
@@ -134,7 +175,7 @@ export class InfraStack extends cdk.Stack {
           'springdatasourceurl': `jdbc:postgresql://` + auroraServerlessRds.attrEndpointAddress + `:5432/outboxPattern`,
           'springdatasourceusername': 'dbaadmin',
           'sqsqueuename': flightQueue.queueName,
-          'AWS_REGION': 'us-west-2'
+          'AWS_REGION': this.region
         },
         secrets: {
           'pgpassword': ecs.Secret.fromSecretsManager(pgPassword)
@@ -165,5 +206,9 @@ export class InfraStack extends cdk.Stack {
       scaleInCooldown: cdk.Duration.seconds(30),
       scaleOutCooldown: cdk.Duration.seconds(30)
     })
+    const cfnWebACLAssociation = new wafv2.CfnWebACLAssociation(this,'ALBWebACLAssociation', {
+      resourceArn:outboxApp.loadBalancer.loadBalancerArn,
+      webAclArn: webACL.attrArn,
+    });
   }
 }

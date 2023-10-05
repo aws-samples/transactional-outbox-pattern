@@ -46,15 +46,15 @@ $ git clone https://github.com/aws-samples/outbox-pattern-netcore-blog.git
 ```
 #### Step 2: Deploy the CDK code
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app. Make sure the region in `infra/lib/infra-stack.ts` (line 92) matches the region in which you plan to deploy your stack. Build and deploy the CDK code (including the application) using the commands below.
+The `cdk.json` file tells the CDK Toolkit how to execute your app. Build and deploy the CDK code (including the application) using the commands below. Replace <MY_PUBLIC_IP> by the public IP you will use to access the ALB endpoint.
 
 ```shell
 $ npm install -g aws-cdk
-$ cd infra
+$ cd outbox-pattern-netcore-blog/infra
 $ npm install
 $ cdk bootstrap
 $ cdk synth
-$ cdk deploy
+$ cdk deploy --parameters myPublicIP=<MY_PUBLIC_IP>/32
 ```
 After about 5-10 mins, the deployment will complete and it will output the Application Load Balancer URL. 
 ![StackOutput](img/outbox-pattern-stack-output.png)
