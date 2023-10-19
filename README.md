@@ -4,6 +4,8 @@
 
 The transactional outbox pattern resolves the dual write operations issue that occurs in distributed systems when a single operation involves both a database write operation and a message or event notification. A dual write operation occurs when an application writes to two different systems; for example, when a microservice needs to persist data in the database and send a message to notify other systems. A failure in one of these operations might result in inconsistent data.
 
+Blog reference: https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html 
+
 ## Motivation
 
 When a microservice sends an event notification after a database update, these two operations should run atomically to ensure data consistency and reliability.
@@ -27,15 +29,15 @@ Issues and considerations
 
 ## Implementation
 
-This sample will lead you to provision the following infrastructure:
+This sample will lead you to provision the following infrastructure, leveraging [Amazon Elastic Load Balancer](https://aws.amazon.com/elasticloadbalancing/), [Amazon ECS](https://aws.amazon.com/ecs/), [Amazon Aurora](https://aws.amazon.com/rds/aurora/) and [Amazon SQS](https://aws.amazon.com/sqs/):
 ![Infra](img/outbox-sample-infra.png)
 
 ### Prerequisites
 
-- An AWS account.
-- An AWS user with AdministratorAccess (see the instructions on the AWS Identity and Access Management (IAM) console).
+- An [AWS](https://aws.amazon.com/) account.
+- An AWS user with AdministratorAccess (see the [instructions](https://console.aws.amazon.com/iam/home#/roles%24new?step=review&commonUseCase=EC2%2BEC2&selectedUseCase=EC2&policies=arn:aws:iam::aws:policy%2FAdministratorAccess) on the [AWS Identity and Access Management](http://aws.amazon.com/iam) (IAM) console).
 - Access to the following AWS services: Elastic Load Balancing, Amazon ECS, Amazon Aurora, Amazon SQS.
-- Docker, Java 17 and NodeJS installed. Docker client running.
+- [Docker](https://www.docker.com/), [Java 17](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html) and [NodeJS](https://nodejs.org/en) installed. Docker client running.
 
 ### Deploy using CDK
 
