@@ -52,7 +52,7 @@ The `cdk.json` file tells the CDK Toolkit how to execute your app. Build and dep
 
 ```shell
 $ npm install -g aws-cdk
-$ cd outbox-pattern-netcore-blog/infra
+$ cd transactional-outbox-pattern/infra
 $ npm install
 $ cdk bootstrap
 $ cdk synth
