@@ -44,7 +44,7 @@ This sample will lead you to provision the following infrastructure, leveraging 
 #### Step 1: Download the application
 
 ```shell
-$ git clone https://github.com/aws-samples/outbox-pattern-netcore-blog.git
+$ git clone https://github.com/aws-samples/transactional-outbox-pattern.git
 ```
 #### Step 2: Deploy the CDK code
 
