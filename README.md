@@ -61,12 +61,13 @@ cdk deploy --parameters myPublicIP=<MY_PUBLIC_IP>/32
 After about 5-10 mins, the deployment will complete and it will output the Application Load Balancer URL. 
 ![StackOutput](img/outbox-pattern-stack-output.png)
 
-## Usage
+### Usage
 
-You can append `swagger-ui/index.html` to the ALB URL to access the Swagger page:
+1. Append `swagger-ui/index.html` to the ALB URL to access the Swagger page in thr browser:
+
 ![SwaggerPage](img/outbox-pattern-swagger-page.png)
 
-Let's book a first flight ticket from Paris to London (you can replace the departure, destination and dates/times as you desire):
+2. Let's book a first flight ticket from Paris to London (you can replace the departure, destination and dates/times as you desire):
 ```json
 {
     "departureAirport": "Paris",
@@ -79,15 +80,12 @@ Let's book a first flight ticket from Paris to London (you can replace the depar
 
 After a few seconds, the flight event is processed by the Payment service.
 
-To view the logs
-- Navigate to the `Elastic Container Service` page of the AWS Console.
-- Click on `Clusters` in the left pane and then click on the Cluster you just deployed.
-- In the `Services` tab, click on the service you just created and then navigate to the `Logs` tab.
-- If you have trouble finding the relevant log line, you can use the search box to filter for `Processing payment`.):
+3. To view the logs, navigate to the `Elastic Container Service` page of the AWS Console. - Click on `Clusters` in the left pane and then click on the Cluster you just deployed.
+4. In the `Services` tab, click on the service you just created and then navigate to the `Logs` tab. If you have trouble finding the relevant log line, you can use the search box to filter for `Processing payment`.
 
 ![FlightProcessed](img/outbox-pattern-first-flight-processed.png)
 
-Navigate back to the Swagger page, and book a second flight ticket (you can replace the departure, destination and dates/times as you desire):
+5. Navigate back to the Swagger page, and book a second flight ticket (you can replace the departure, destination and dates/times as you desire):
 ```json
 {
     "departureAirport": "Paris",
@@ -96,26 +94,33 @@ Navigate back to the Swagger page, and book a second flight ticket (you can repl
     "arrivalDateTime": "2023-09-02T08:15:00.000Z",
 }
 ```
-![SecondFlight](img/outbox-pattern-second-flight.png)
+**Request**
 
-Now let's say the queue becomes unavailable (for the sake of this example we have simply added a resource policy to deny access):
+![SecondFlight_Request](img/outbox-pattern-second-flight_request.png)
+
+
+**Response**
+
+![SecondFlight_Response](img/outbox-pattern-second-flight_response.png)
+
+6. Now let's say the queue becomes unavailable (for the sake of this example we have simply added a resource policy to deny access):
 ![QueueUnavailable](img/outbox-pattern-queue-unavailable.png)
 
-The event will remain in the outbox because the system has been unable to fully process the flight booking.
+The event will remain in the outbox because the system has been unable to fully process the flight booking. Subsequent to that, several strategies can be adopted depending on the requirements of the system (raise an alert, wait for the queue to become available again, retry with backoff, etc.).
 
-To view the content of both the Flight and the Outbox tables:
-- Navigate to the `RDS` page of the AWS Console.
-- Click on `Databases` in the left pane and then click on the cluster you just created
-- Click on the `Action` button in the top-right corner and then on the `Query` action
-- The first time you do so, the Console will ask you for the credentials:
-    - Choose the relevant cluster in the drop down box
-    - Insert the database username you have defined in the CDK file (if you have not changed it, the default is `dbaadmin`)
-    - Insert the database password that has been generated when deploying the infrastructure (to find it, you can navigate to the `Secrets Manager` page of the AWS Console, click on the relevant secret and then click on the `Retrieve secret value` button in the middle of your screen)
-    - Insert the database name that you have defined in the CDK file (you have not changed it, the default is `outboxPattern`)
+### Viewing Flight and Outbox tables
+
+1. To view the content of both the Flight and the Outbox tables, navigate to the `RDS` page of the AWS Console.
+2. Click on `Databases` in the left pane and then click on the cluster you just created.
+3. Click on the `Action` button in the top-right corner and then on the `Query` action.
+
+Note: The first time you do so, the Console will ask you for the credentials:
+* Choose the relevant cluster in the drop down box
+* Insert the database username you have defined in the CDK file (if you have not changed it, the default is `dbaadmin`)
+* Insert the database password that has been generated when deploying the infrastructure. To get the password, you can navigate to the `Secrets Manager` page of the AWS Console, click on the relevant secret and then click on the `Retrieve secret value` button.
+* Insert the database name that you have defined in the CDK file (you have not changed it, the default is `outboxPattern`)
     
 ![FlightOutbox](img/outbox-pattern-event.png)
-
-Subsequent to that, several strategies can be adopted depending on the requirements of the system (raise an alert, wait for the queue to become available again, retry with backoff, etc.).
 
 ## Security
 
