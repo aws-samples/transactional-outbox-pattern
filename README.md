@@ -63,7 +63,7 @@ After about 5-10 mins, the deployment will complete and it will output the Appli
 
 ### Usage
 
-1. Append `swagger-ui/index.html` to the ALB URL to access the Swagger page in thr browser:
+1. Append `swagger-ui/index.html` to the ALB URL to access the Swagger page in your browser:
 
 ![SwaggerPage](img/outbox-pattern-swagger-page.png)
 
@@ -81,6 +81,7 @@ After about 5-10 mins, the deployment will complete and it will output the Appli
 After a few seconds, the flight event is processed by the Payment service.
 
 3. To view the logs, navigate to the `Elastic Container Service` page of the AWS Console. - Click on `Clusters` in the left pane and then click on the Cluster you just deployed.
+
 4. In the `Services` tab, click on the service you just created and then navigate to the `Logs` tab. If you have trouble finding the relevant log line, you can use the search box to filter for `Processing payment`.
 
 ![FlightProcessed](img/outbox-pattern-first-flight-processed.png)
@@ -118,7 +119,7 @@ Note: The first time you do so, the Console will ask you for the credentials:
 * Choose the relevant cluster in the drop down box
 * Insert the database username you have defined in the CDK file (if you have not changed it, the default is `dbaadmin`)
 * Insert the database password that has been generated when deploying the infrastructure. To get the password, you can navigate to the `Secrets Manager` page of the AWS Console, click on the relevant secret and then click on the `Retrieve secret value` button.
-* Insert the database name that you have defined in the CDK file (you have not changed it, the default is `outboxPattern`)
+* Insert the database name that you have defined in the CDK file (if you have not changed it, the default is `outboxPattern`)
     
 ![FlightOutbox](img/outbox-pattern-event.png)
 
