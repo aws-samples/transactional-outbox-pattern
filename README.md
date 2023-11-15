@@ -63,6 +63,8 @@ After about 5-10 mins, the deployment will complete and it will output the Appli
 
 ### Usage
 
+#### Happy Path
+
 1. Append `swagger-ui/index.html` to the ALB URL to access the Swagger page in your browser:
 
 ![SwaggerPage](img/outbox-pattern-swagger-page.png)
@@ -73,7 +75,7 @@ After about 5-10 mins, the deployment will complete and it will output the Appli
     "departureAirport": "Paris",
     "arrivalAirport": "London",
     "departureDateTime": "2023-09-01T08:00:00.000Z",
-    "arrivalDateTime": "2023-09-01T08:15:00.000Z",
+    "arrivalDateTime": "2023-09-01T08:15:00.000Z"
 }
 ```
 ![FirstFlight](img/outbox-pattern-first-flight.png)
@@ -86,28 +88,46 @@ After a few seconds, the flight event is processed by the Payment service.
 
 ![FlightProcessed](img/outbox-pattern-first-flight-processed.png)
 
-5. Navigate back to the Swagger page, and book a second flight ticket (you can replace the departure, destination and dates/times as you desire):
+5. The flight has been recorded in the database:
+
+![FlightRecordedInDB](img/outbox-pattern-first-flight-in-db.png)
+
+6. And because the flight booking has been processed successfully, the Outbox table is empty:
+
+![OutboxTableEmpty](img/outbox-pattern-first-flight-outbox-table.png)
+
+This was the happy path - everything went according to plan. Now let's look at what happens when something fails - in that case we will simulate an SQS failure and observe what happens.
+
+#### SQS Failure
+
+1. For the sake of this example, we will remove the permissions for ECS to write to SQS:
+    - Navigate to the `IAM` page in the AWS Console, the click on `Roles` in the left pane. Search for the role that was created during deployment (it should look something like `xxx-sqsFullRolexxx`) and click on it.
+    - Click on the Policy and then the `Edit` button.
+    - Change the effect from `Allow` to `Deny` and then click on `Next`.
+    - Click on `Save Changes`
+
+2. Navigate back to the Swagger page, and book a second flight ticket (you can replace the departure, destination and dates/times as you desire):
 ```json
 {
     "departureAirport": "Paris",
     "arrivalAirport": "London",
     "departureDateTime": "2023-09-02T08:00:00.000Z",
-    "arrivalDateTime": "2023-09-02T08:15:00.000Z",
+    "arrivalDateTime": "2023-09-02T08:15:00.000Z"
 }
 ```
-**Request**
+![SecondFlight](img/outbox-pattern-second-flight.png)
 
+**Request**
 ![SecondFlight_Request](img/outbox-pattern-second-flight_request.png)
 
-
 **Response**
-
 ![SecondFlight_Response](img/outbox-pattern-second-flight_response.png)
 
-6. Now let's say the queue becomes unavailable (for the sake of this example we have simply added a resource policy to deny access):
+3. The booking service will record an error because the queue is unavailable.
 ![QueueUnavailable](img/outbox-pattern-queue-unavailable.png)
 
-The event will remain in the outbox because the system has been unable to fully process the flight booking. Subsequent to that, several strategies can be adopted depending on the requirements of the system (raise an alert, wait for the queue to become available again, retry with backoff, etc.).
+4. The event will remain in the outbox because the system has been unable to fully process the flight booking.
+![EventStillInOutbox](img/outbox-pattern-event-in-outbox.png)
 
 ### Viewing Flight and Outbox tables
 
@@ -122,6 +142,8 @@ Note: The first time you do so, the Console will ask you for the credentials:
 * Insert the database name that you have defined in the CDK file (if you have not changed it, the default is `outboxPattern`)
     
 ![FlightOutbox](img/outbox-pattern-event.png)
+
+Subsequent to that, several strategies can be adopted depending on the requirements of the system (raise an alert, wait for the queue to become available again, retry with backoff, etc.).
 
 ## Security
 
