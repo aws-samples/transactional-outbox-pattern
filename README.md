@@ -115,7 +115,6 @@ This was the happy path - everything went according to plan. Now let's look at w
     "arrivalDateTime": "2023-09-02T08:15:00.000Z"
 }
 ```
-![SecondFlight](img/outbox-pattern-second-flight.png)
 
 **Request**
 ![SecondFlight_Request](img/outbox-pattern-second-flight_request.png)
