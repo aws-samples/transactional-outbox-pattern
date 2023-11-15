@@ -128,6 +128,8 @@ This was the happy path - everything went according to plan. Now let's look at w
 4. The event will remain in the outbox because the system has been unable to fully process the flight booking.
 ![EventStillInOutbox](img/outbox-pattern-event-in-outbox.png)
 
+5. Subsequent to that, several strategies can be adopted depending on the requirements of the system (raise an alert, wait for the queue to become available again, retry with backoff, etc.).
+
 ### Viewing Flight and Outbox tables
 
 1. To view the content of both the Flight and the Outbox tables, navigate to the `RDS` page of the AWS Console.
@@ -139,10 +141,10 @@ Note: The first time you do so, the Console will ask you for the credentials:
 * Insert the database username you have defined in the CDK file (if you have not changed it, the default is `dbaadmin`)
 * Insert the database password that has been generated when deploying the infrastructure. To get the password, you can navigate to the `Secrets Manager` page of the AWS Console, click on the relevant secret and then click on the `Retrieve secret value` button.
 * Insert the database name that you have defined in the CDK file (if you have not changed it, the default is `outboxPattern`)
-    
+
+Example:
 ![FlightOutbox](img/outbox-pattern-event.png)
 
-Subsequent to that, several strategies can be adopted depending on the requirements of the system (raise an alert, wait for the queue to become available again, retry with backoff, etc.).
 
 ## Security
 
