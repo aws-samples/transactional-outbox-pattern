@@ -1,6 +1,8 @@
 package com.amazonaws.samples.service;
 
-import lombok.extern.log4j.Log4j2;
+import com.amazonaws.samples.AwsOutboxCDCSampleApplication;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
@@ -12,14 +14,14 @@ import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+
 import java.util.List;
 
 @Service
 @Transactional
-@Log4j2
 public class PaymentService {
+    static final Logger logger = LoggerFactory.getLogger(AwsOutboxCDCSampleApplication.class);
     private final SqsClient sqsClient;
-
     @Value("${sqs.queue_name}")
     private String sqsQueueName;
 
@@ -42,7 +44,7 @@ public class PaymentService {
 
         // Print out the messages
         for (Message m : messages) {
-            log.info("Flight event received: " + m.body() + ". Processing payment.");
+            logger.info("Flight event received: " + m.body() + ". Processing payment.");
             DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder()
                     .queueUrl(sqsQueueUrl)
                     .receiptHandle(m.receiptHandle())
