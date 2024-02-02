@@ -47,5 +47,5 @@ Run the following command to destroy the resources:
 cdk destroy CdcStack
 ```
 
-As the DynamoDB table is `detroy protected` to ensure you do not lose any data, you will have to manually delete the resource in the Console. You can do so by navigating to the DynamoDB page of the AWS Console, clicking on Tables in the left pane, selecting your table in the list and then clicking on Delete.
+As the DynamoDB table is `destroy protected` to ensure you do not lose any data, you will have to manually delete the resource in the Console. You can do so by navigating to the DynamoDB page of the AWS Console, clicking on Tables in the left pane, selecting your table in the list and then clicking on Delete.
 
