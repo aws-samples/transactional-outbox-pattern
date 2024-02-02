@@ -85,8 +85,6 @@ Run the following command to destroy the resources:
 cdk destroy AuroraStack
 ```
 
-As the database is `destroy protected` to ensure you do not lose any data, you will have to manually delete the resource in the Console. You can do so by navigating to the RDS page of the AWS Console, clicking on your Aurora cluster and then Actions > Delete.
-
 ## Viewing tables
 
 1. To view the content of both the Flight and the Outbox tables, navigate to the `RDS` page of the AWS Console.

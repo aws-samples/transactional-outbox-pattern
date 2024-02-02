@@ -63,6 +63,7 @@ export class CdcStack extends cdk.Stack {
                 name: 'id',
                 type: dynamodb.AttributeType.STRING,
             },
+            deletionProtection: false
         });
         const dynamoDBPolicy = new iam.Policy(this, 'dynamoDBPolicy', {
             statements: [new iam.PolicyStatement({
