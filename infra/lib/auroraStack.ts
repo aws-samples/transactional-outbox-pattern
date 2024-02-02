@@ -98,7 +98,7 @@ export class AuroraStack extends cdk.Stack {
         cpuArchitecture: ecs.CpuArchitecture.ARM64,
       },
       taskImageOptions: {
-        image: ecs.ContainerImage.fromAsset('../outboxApp'),// {platform: aws_ecr_assets.Platform.LINUX_AMD64}),
+        image: ecs.ContainerImage.fromAsset('../outbox-implementation'),// {platform: aws_ecr_assets.Platform.LINUX_AMD64}),
         containerPort: 8080,
         environment: {
           'springdatasourceurl': `jdbc:postgresql://` + auroraServerlessRds.attrEndpointAddress + `:5432/outboxPattern`,

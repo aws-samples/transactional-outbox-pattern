@@ -86,7 +86,7 @@ export class CdcStack extends cdk.Stack {
                 cpuArchitecture: ecs.CpuArchitecture.ARM64,
             },
             taskImageOptions: {
-                image: ecs.ContainerImage.fromAsset('../cdcApp'),// {platform: aws_ecr_assets.Platform.LINUX_AMD64}),
+                image: ecs.ContainerImage.fromAsset('../cdc-implementation'),// {platform: aws_ecr_assets.Platform.LINUX_AMD64}),
                 containerPort: 8080,
                 environment: {
                     'sqsqueuename': props.flightQueue.queueName,
