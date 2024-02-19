@@ -44,7 +44,10 @@ The CDC implementation leverages [Amazon DynamoDB](https://aws.amazon.com/dynamo
 - An [AWS](https://aws.amazon.com/) account.
 - An AWS user with AdministratorAccess (see the [instructions](https://console.aws.amazon.com/iam/home#/roles%24new?step=review&commonUseCase=EC2%2BEC2&selectedUseCase=EC2&policies=arn:aws:iam::aws:policy%2FAdministratorAccess) on the [AWS Identity and Access Management](http://aws.amazon.com/iam) (IAM) console).
 - Access to the following AWS services: Elastic Load Balancing, Amazon ECS, Amazon Aurora, Amazon SQS, Amazon DynamoDB and Amazon Kinesis Data Streams.
-- [Docker](https://docs.docker.com/engine/install/), [Java 17](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html) and [NodeJS](https://nodejs.org/en) installed. Docker daemon running.
+- [Docker](https://docs.docker.com/engine/install/), [Java 17](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html) and [NodeJS](https://nodejs.org/en) installed.
+- Docker will be used to build the container images - make sure your daemon is running. Type `docker ps` and if you see an error such as `Cannot connect to the Docker daemon` it means Docker is installed but not running.
+
+> **NOTE:** For the sake of simplicity and readability, all services run in the same container. As your application grow in features, usage and complexity, it is considered best practice to run services of different domains in their own containers. It allows you to scale them independently and to more easily make changes without impacting other areas of your application.
 
 ### Deploy using CDK
 
