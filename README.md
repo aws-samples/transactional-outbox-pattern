@@ -1,4 +1,4 @@
-## Transactional Outbox Pattern Sample
+# Transactional Outbox Pattern Sample
 
 ## Intent
 
@@ -29,15 +29,25 @@ Issues and considerations
 
 ## Implementation
 
-This sample will lead you to provision the following infrastructure, leveraging [Amazon Elastic Load Balancer](https://aws.amazon.com/elasticloadbalancing/), [Amazon ECS](https://aws.amazon.com/ecs/), [Amazon Aurora](https://aws.amazon.com/rds/aurora/) and [Amazon SQS](https://aws.amazon.com/sqs/):
+We will look at two ways of implementing this pattern: one leveraging a traditional relational database with an outbox table, and one leveraging a NoSQL database that natively supports real-time change data capture (CDC).
+
+The outbox implementation leverages [Amazon Elastic Load Balancer](https://aws.amazon.com/elasticloadbalancing/), [Amazon ECS](https://aws.amazon.com/ecs/), [Amazon Aurora](https://aws.amazon.com/rds/aurora/) and [Amazon SQS](https://aws.amazon.com/sqs/) and will lead you to provision the following infrastructure:
+
 ![Infra](img/outbox-sample-infra.png)
+
+The CDC implementation leverages [Amazon DynamoDB](https://aws.amazon.com/dynamodb/) and [Amazon Kinesis Data Streams](https://aws.amazon.com/kinesis/data-streams/) and will lead you to provision the following infrastructure:
+
+![InfraCDC](img/outbox-sample-cdc-infra.png)
 
 ### Prerequisites
 
 - An [AWS](https://aws.amazon.com/) account.
 - An AWS user with AdministratorAccess (see the [instructions](https://console.aws.amazon.com/iam/home#/roles%24new?step=review&commonUseCase=EC2%2BEC2&selectedUseCase=EC2&policies=arn:aws:iam::aws:policy%2FAdministratorAccess) on the [AWS Identity and Access Management](http://aws.amazon.com/iam) (IAM) console).
-- Access to the following AWS services: Elastic Load Balancing, Amazon ECS, Amazon Aurora, Amazon SQS.
-- [Docker](https://docs.docker.com/engine/install/), [Java 17](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html) and [NodeJS](https://nodejs.org/en) installed. Docker client running.
+- Access to the following AWS services: Elastic Load Balancing, Amazon ECS, Amazon Aurora, Amazon SQS, Amazon DynamoDB and Amazon Kinesis Data Streams.
+- [Docker](https://docs.docker.com/engine/install/), [Java 17](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html) and [NodeJS](https://nodejs.org/en) installed.
+- Docker will be used to build the container images - make sure your daemon is running. Type `docker ps` and if you see an error such as `Cannot connect to the Docker daemon` it means Docker is installed but not running.
+
+> **NOTE:** For the sake of simplicity and readability, all services run in the same container. As your application grow in features, usage and complexity, it is considered best practice to run services of different domains in their own containers. It allows you to scale them independently and to more easily make changes without impacting other areas of your application.
 
 ### Deploy using CDK
 
@@ -46,9 +56,10 @@ This sample will lead you to provision the following infrastructure, leveraging 
 ```shell
 git clone https://github.com/aws-samples/transactional-outbox-pattern.git
 ```
-#### Step 2: Deploy the CDK code
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app. Build and deploy the CDK code (including the application) using the commands below. Replace <MY_PUBLIC_IP> by the public IP you will use to access the ALB endpoint (you can find your public IP through websites such as https://www.whatismyip.com/).
+#### Step 2: Initialize your CDK environment and deploy basic resources
+
+The `cdk.json` file tells the CDK Toolkit how to execute your app. Build and deploy the CDK code (including the application) using the commands below. Replace <MY_PUBLIC_IP> by the public IP you will use to access the ALB endpoints (you can find your public IP through websites such as https://www.whatismyip.com/).
 
 ```shell
 npm install -g aws-cdk
@@ -56,95 +67,28 @@ cd transactional-outbox-pattern/infra
 npm install
 cdk bootstrap
 cdk synth
-cdk deploy --parameters myPublicIP=<MY_PUBLIC_IP>/32
+cdk deploy BaseStack --parameters myPublicIP=<MY_PUBLIC_IP>/32
 ```
-After about 5-10 mins, the deployment will complete and it will output the Application Load Balancer URL. 
-![StackOutput](img/outbox-pattern-stack-output.png)
+After about 5-10 mins, the deployment will complete.
+
+> **NOTE:** If your Public IP changes and you lose access to the application you can update it directly in the AWS Console by nagivating to WAF & Shield, and then by clicking on IP sets in the left panel. Make sure you choose the region you deployed your stack in, and then update the IP set with your new Public IP.
 
 ### Usage
 
-#### Happy Path
+#### Outbox implementation
 
-1. Append `swagger-ui/index.html` to the ALB URL to access the Swagger page in your browser:
+> Please refer to the following [README](outbox-implementation/README.md) for detailed instructions.
 
-![SwaggerPage](img/outbox-pattern-swagger-page.png)
+#### CDC implementation
 
-2. Let's book a first flight ticket from Paris to London (you can replace the departure, destination and dates/times as you desire):
-```json
-{
-    "departureAirport": "Paris",
-    "arrivalAirport": "London",
-    "departureDateTime": "2023-09-01T08:00:00.000Z",
-    "arrivalDateTime": "2023-09-01T08:15:00.000Z"
-}
+> Please refer to the following [README](cdc-implementation/README.md) for detailed instructions.
+
+#### Cleaning Up
+
+Type the following command to destroy the rest of the resources:
+```shell
+cdk destroy BaseStack
 ```
-![FirstFlight](img/outbox-pattern-first-flight.png)
-
-After a few seconds, the flight event is processed by the Payment service.
-
-3. To view the logs, navigate to the `Elastic Container Service` page of the AWS Console. - Click on `Clusters` in the left pane and then click on the Cluster you just deployed.
-
-4. In the `Services` tab, click on the service you just created and then navigate to the `Logs` tab. If you have trouble finding the relevant log line, you can use the search box to filter for `Processing payment`.
-
-![FlightProcessed](img/outbox-pattern-first-flight-processed.png)
-
-5. The flight has been recorded in the database:
-
-![FlightRecordedInDB](img/outbox-pattern-first-flight-in-db.png)
-
-6. And because the flight booking has been processed successfully, the Outbox table is empty:
-
-![OutboxTableEmpty](img/outbox-pattern-first-flight-outbox-table.png)
-
-This was the happy path - everything went according to plan. Now let's look at what happens when something fails - in that case we will simulate an SQS failure and observe what happens.
-
-#### SQS Failure
-
-1. For the sake of this example, we will remove the permissions for ECS to write to SQS:
-    - Navigate to the `IAM` page in the AWS Console, the click on `Roles` in the left pane. Search for the role that was created during deployment (it should look something like `xxx-sqsFullRolexxx`) and click on it.
-    - Click on the Policy and then the `Edit` button.
-    - Change the effect from `Allow` to `Deny` and then click on `Next`.
-    - Click on `Save Changes`
-
-2. Navigate back to the Swagger page, and book a second flight ticket (you can replace the departure, destination and dates/times as you desire):
-```json
-{
-    "departureAirport": "Paris",
-    "arrivalAirport": "London",
-    "departureDateTime": "2023-09-02T08:00:00.000Z",
-    "arrivalDateTime": "2023-09-02T08:15:00.000Z"
-}
-```
-
-**Request**
-![SecondFlight_Request](img/outbox-pattern-second-flight_request.png)
-
-**Response**
-![SecondFlight_Response](img/outbox-pattern-second-flight_response.png)
-
-3. The booking service will record an error because the queue is unavailable.
-![QueueUnavailable](img/outbox-pattern-queue-unavailable.png)
-
-4. The event will remain in the outbox because the system has been unable to fully process the flight booking.
-![EventStillInOutbox](img/outbox-pattern-event-in-outbox.png)
-
-5. Subsequent to that, several strategies can be adopted depending on the requirements of the system (raise an alert, wait for the queue to become available again, retry with backoff, etc.).
-
-### Viewing Flight and Outbox tables
-
-1. To view the content of both the Flight and the Outbox tables, navigate to the `RDS` page of the AWS Console.
-2. Click on `Databases` in the left pane and then click on the cluster you just created.
-3. Click on the `Action` button in the top-right corner and then on the `Query` action.
-
-Note: The first time you do so, the Console will ask you for the credentials:
-* Choose the relevant cluster in the drop down box
-* Insert the database username you have defined in the CDK file (if you have not changed it, the default is `dbaadmin`)
-* Insert the database password that has been generated when deploying the infrastructure. To get the password, you can navigate to the `Secrets Manager` page of the AWS Console, click on the relevant secret and then click on the `Retrieve secret value` button.
-* Insert the database name that you have defined in the CDK file (if you have not changed it, the default is `outboxPattern`)
-
-Example:
-![FlightOutbox](img/outbox-pattern-event.png)
-
 
 ## Security
 

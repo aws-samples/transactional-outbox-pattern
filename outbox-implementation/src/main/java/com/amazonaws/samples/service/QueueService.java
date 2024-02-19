@@ -5,6 +5,8 @@ import com.amazonaws.samples.repository.OutboxRepository;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,7 @@ public class QueueService {
     }
 
     @Scheduled(fixedDelayString = "${sqs.polling_ms}")
+    @Retryable(maxAttempts = 5, backoff = @Backoff(delay = 2000, multiplier = 2))
     public void forwardEventsToSQS() {
         List<FlightOutbox> entities = outboxRepository.findAllByOrderByIdAsc(Pageable.ofSize(batchSize)).toList();
         if (!entities.isEmpty()) {

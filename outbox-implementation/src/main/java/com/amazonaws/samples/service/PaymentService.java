@@ -2,6 +2,8 @@ package com.amazonaws.samples.service;
 
 import lombok.extern.log4j.Log4j2;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,7 @@ public class PaymentService {
     }
 
     @Scheduled(fixedDelayString = "${sqs.polling_ms}")
+    @Retryable(maxAttempts = 5, backoff = @Backoff(delay = 2000, multiplier = 2))
     public void readEventsFromSQS() {
         GetQueueUrlRequest getQueueRequest = GetQueueUrlRequest.builder()
                 .queueName(sqsQueueName)

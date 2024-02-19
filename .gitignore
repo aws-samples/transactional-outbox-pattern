@@ -23,3 +23,14 @@ outboxApp/!**/src/test/**/target/
 outboxApp/*.iws
 outboxApp/*.iml
 outboxApp/*.ipr
+
+cdcApp/HELP.md
+cdcApp/target/
+cdcApp/!.mvn/wrapper/maven-wrapper.jar
+cdcApp/!**/src/main/**/target/
+cdcApp/!**/src/test/**/target/
+
+### IntelliJ IDEA ###
+cdcApp/*.iws
+cdcApp/*.iml
+cdcApp/*.ipr
