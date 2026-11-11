@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT-0
 
 # ---- Build stage -------------------------------------------------------------
-FROM maven:3.9-amazoncorretto-21-al2023 AS build
+FROM maven:3-amazoncorretto-27-al2023 AS build
 WORKDIR /build
 COPY pom.xml .
 RUN mvn -B -q dependency:go-offline
