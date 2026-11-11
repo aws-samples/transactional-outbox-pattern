@@ -13,7 +13,7 @@ RUN mvn -B -q package -DskipTests \
  && (cd target/extracted && jar -xf ../*.jar)
 
 # ---- Runtime stage -----------------------------------------------------------
-FROM amazoncorretto:21-al2023-headless
+FROM amazoncorretto:27-al2023-headless
 # Pick up OS security fixes published after the base image was built.
 RUN dnf -y upgrade --security --releasever=latest && dnf clean all && rm -rf /var/cache/dnf
 WORKDIR /app
