@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MIT-0
 
 # ---- Build stage -------------------------------------------------------------
-FROM maven:3.9-amazoncorretto-21-al2023 AS build
+FROM public.ecr.aws/docker/library/maven:3.9-amazoncorretto-21-al2023 AS build
 WORKDIR /build
 COPY pom.xml .
 RUN mvn -B -q dependency:go-offline
@@ -16,7 +16,7 @@ RUN curl -fsSL --proto '=https' -o /build/rds-global-bundle.pem \
       https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
 
 # ---- Runtime stage -----------------------------------------------------------
-FROM amazoncorretto:21-al2023-headless
+FROM public.ecr.aws/amazoncorretto/amazoncorretto:21-al2023-headless
 # Pick up OS security fixes published after the base image was built.
 RUN dnf -y upgrade --security --releasever=latest && dnf clean all && rm -rf /var/cache/dnf
 WORKDIR /app
