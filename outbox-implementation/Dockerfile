@@ -16,7 +16,7 @@ RUN curl -fsSL --proto '=https' -o /build/rds-global-bundle.pem \
       https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
 
 # ---- Runtime stage -----------------------------------------------------------
-FROM amazoncorretto:21-al2023-headless
+FROM amazoncorretto:27-al2023-headless
 # Pick up OS security fixes published after the base image was built.
 RUN dnf -y upgrade --security --releasever=latest && dnf clean all && rm -rf /var/cache/dnf
 WORKDIR /app
