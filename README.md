@@ -15,7 +15,7 @@ When a microservice sends an event notification after a database update, these t
 ## Applicability
 
 Use the transactional outbox pattern when:
-- You're building an event-driven application where a database update initiates an event notification .
+- You're building an event-driven application where a database update initiates an event notification.
 - You want to ensure atomicity in operations that involve two services.
 - You want to implement the event sourcing pattern.
 
@@ -52,7 +52,7 @@ The CDC implementation leverages [Amazon DynamoDB](https://aws.amazon.com/dynamo
 - Docker will be used to build the container images - make sure your daemon is running. Type `docker ps` and if you see an error such as `Cannot connect to the Docker daemon` it means Docker is installed but not running.
 - The container images are built for **ARM64** (AWS Graviton). On an x86 machine, Docker needs ARM64 emulation (for example `docker run --privileged --rm tonistiigi/binfmt --install arm64` with Docker Buildx); Docker Desktop on Apple silicon works out of the box.
 
-> **NOTE:** For the sake of simplicity and readability, all services run in the same container. As your application grow in features, usage and complexity, it is considered best practice to run services of different domains in their own containers. It allows you to scale them independently and to more easily make changes without impacting other areas of your application.
+> **NOTE:** For the sake of simplicity and readability, all services run in the same container. As your application grows in features, usage and complexity, it is considered best practice to run services of different domains in their own containers. It allows you to scale them independently and to more easily make changes without impacting other areas of your application.
 
 ### Deploy using CDK
 
