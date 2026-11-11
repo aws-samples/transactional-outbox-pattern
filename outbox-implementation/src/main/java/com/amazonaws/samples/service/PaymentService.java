@@ -1,54 +1,49 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 package com.amazonaws.samples.service;
 
-import lombok.extern.log4j.Log4j2;
-import org.springframework.beans.factory.annotation.Value;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
-import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.Message;
+import software.amazon.awssdk.services.sqs.model.MessageSystemAttributeName;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
+
 import java.util.List;
 
+/** Simulated downstream consumer of the flight events. */
+@Slf4j
 @Service
-@Transactional
-@Log4j2
+@RequiredArgsConstructor
 public class PaymentService {
+
     private final SqsClient sqsClient;
+    private final QueueUrlResolver queueUrlResolver;
 
-    @Value("${sqs.queue_name}")
-    private String sqsQueueName;
-
-    public PaymentService() {
-        this.sqsClient = SqsClient.builder()
-                .build();
-    }
-
-    @Scheduled(fixedDelayString = "${sqs.polling_ms}")
+    @Scheduled(fixedDelayString = "${sqs.polling-ms}")
     @Retryable(maxAttempts = 5, backoff = @Backoff(delay = 2000, multiplier = 2))
     public void readEventsFromSQS() {
-        GetQueueUrlRequest getQueueRequest = GetQueueUrlRequest.builder()
-                .queueName(sqsQueueName)
-                .build();
-        String sqsQueueUrl = sqsClient.getQueueUrl(getQueueRequest).queueUrl();
-        ReceiveMessageRequest receiveRequest = ReceiveMessageRequest.builder()
-                .queueUrl(sqsQueueUrl)
-                .build();
-        List<Message> messages = sqsClient.receiveMessage(receiveRequest).messages();
+        String queueUrl = queueUrlResolver.queueUrl();
+        List<Message> messages = sqsClient.receiveMessage(ReceiveMessageRequest.builder()
+                        .queueUrl(queueUrl)
+                        .maxNumberOfMessages(10)
+                        .messageSystemAttributeNames(MessageSystemAttributeName.MESSAGE_GROUP_ID)
+                        .build())
+                .messages();
 
-        // Print out the messages
-        for (Message m : messages) {
-            log.info("Flight event received: " + m.body() + ". Processing payment.");
-            DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder()
-                    .queueUrl(sqsQueueUrl)
-                    .receiptHandle(m.receiptHandle())
-                    .build();
-            sqsClient.deleteMessage(deleteMessageRequest);
+        for (Message message : messages) {
+            log.info("Flight event {} received for flight {}. Processing payment.", message.messageId(),
+                    message.attributes().get(MessageSystemAttributeName.MESSAGE_GROUP_ID));
+            sqsClient.deleteMessage(DeleteMessageRequest.builder()
+                    .queueUrl(queueUrl)
+                    .receiptHandle(message.receiptHandle())
+                    .build());
         }
-
     }
 }

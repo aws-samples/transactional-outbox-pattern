@@ -1,1 +1,7 @@
 cdk*
+target/
+.mvn/
+mvnw
+mvnw.cmd
+*.md
+.git

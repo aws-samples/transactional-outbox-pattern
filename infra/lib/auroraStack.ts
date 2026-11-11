@@ -1,145 +1,98 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 import * as cdk from 'aws-cdk-lib';
+import { Validations } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import * as ec2 from "aws-cdk-lib/aws-ec2";
-import * as ecs from "aws-cdk-lib/aws-ecs";
-import * as ecs_patterns from "aws-cdk-lib/aws-ecs-patterns";
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
-import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import * as iam from 'aws-cdk-lib/aws-iam';
-import { aws_wafv2 as wafv2 } from 'aws-cdk-lib';
+import { CloudFrontFargateService } from './constructs/cloudFrontFargateService';
 
-interface IAuroraStack extends cdk.StackProps {
-  webACL: wafv2.CfnWebACL;
-  outboxEcsCluster: ecs.Cluster;
-  vpc: ec2.Vpc;
-  flightQueue: sqs.Queue;
+export interface AuroraStackProps extends cdk.StackProps {
+  readonly webAclArn: string;
+  readonly outboxEcsCluster: ecs.ICluster;
+  readonly vpc: ec2.IVpc;
+  readonly flightQueue: sqs.IQueue;
 }
 
-export class AuroraStack extends cdk.Stack {
+const DATABASE_NAME = 'outboxPattern';
 
-  constructor(scope: Construct, id: string, props: IAuroraStack) {
+/** Transactional outbox implementation: Aurora PostgreSQL Serverless v2 + polling relay to SQS. */
+export class AuroraStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props: AuroraStackProps) {
     super(scope, id, props);
 
-    const sqsPolicy = new iam.Policy(this, 'SQSpolicy', {
-      statements: [new iam.PolicyStatement({
-        actions: [
-          'sqs:SendMessage',
-          'sqs:SendMessageBatch',
-          'sqs:ReceiveMessage',
-          'sqs:DeleteMessage',
-          'sqs:DeleteMessageBatch',
-          'sqs:GetQueueUrl',
-          'sqs:ChangeMessageVisibility',
-          'sqs:GetQueueAttributes',
-          'sqs:ListQueues',
-        ],
-        resources: [props.flightQueue.queueArn],
-      })],
-    })
-    const sqsRole = new iam.Role(this, 'sqsFullRole', {
-      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
-      description: 'Role for ECS Tasks to interact with SQS',
+    const engine = rds.DatabaseClusterEngine.auroraPostgres({
+      version: rds.AuroraPostgresEngineVersion.VER_17_9,
     });
-    sqsRole.attachInlinePolicy(sqsPolicy);
-
-    //Our Database
-    const pgPassword = new secretsmanager.Secret(this, 'DBSecret', {
-      secretName: "outboxDB-DBPassword",
-      generateSecretString: {
-        excludePunctuation: true
-      }
+    const parameterGroup = new rds.ParameterGroup(this, 'ClusterParams', {
+      engine,
+      parameters: { 'rds.force_ssl': '1' },
     });
-    const dbSecurityGroup = new ec2.SecurityGroup(this, 'dbsg', {
-      vpc: props.vpc,
-      description: "outbox database security group"
-    })
-    const appSecurityGroup = new ec2.SecurityGroup(this, 'appsg', {
-      vpc: props.vpc,
-      description: "outbox app security group"
-    })
-    const auroraServerlessRds = new rds.CfnDBCluster(this, "aurora-serverless", {
-      engine: "aurora-postgresql",
-      engineMode: "serverless",
-      engineVersion: "13.11",
-      databaseName: 'outboxPattern',
-      dbClusterIdentifier: "outbox-pattern-dbcluster",
-      masterUsername: 'dbaadmin',
-      masterUserPassword: pgPassword.secretValue.unsafeUnwrap(),
 
-      dbSubnetGroupName: new rds.CfnDBSubnetGroup(this, "db-subnet-group", {
-        dbSubnetGroupDescription: `outbox-pattern-dbcluster subnet group`,
-        subnetIds: props.vpc.selectSubnets({ subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }).subnetIds
-      }).ref,
-      vpcSecurityGroupIds: [dbSecurityGroup.securityGroupId],
-
+    const cluster = new rds.DatabaseCluster(this, 'OutboxDb', {
+      engine,
+      parameterGroup,
+      writer: rds.ClusterInstance.serverlessV2('writer'),
+      // The relay polls every few seconds, so scale-to-zero would never pause.
+      serverlessV2MinCapacity: 0.5,
+      serverlessV2MaxCapacity: 4,
+      vpc: props.vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      defaultDatabaseName: DATABASE_NAME,
+      credentials: rds.Credentials.fromGeneratedSecret('dbaadmin'),
       storageEncrypted: true,
+      backup: { retention: cdk.Duration.days(14) },
+      cloudwatchLogsExports: ['postgresql'],
+      // RDS Data API backs the console Query Editor used in the README walkthrough (IAM + secret auth).
+      enableDataApi: true,
       deletionProtection: false,
-      backupRetentionPeriod: 14,
-      enableHttpEndpoint: true,
+      removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
+    });
+    const dbSecret = cluster.secret!;
 
-      scalingConfiguration: {
-        autoPause: true,
-        secondsUntilAutoPause: 900,
-        minCapacity: 2,
-        maxCapacity: 4
-      },
-    })
-    auroraServerlessRds.applyRemovalPolicy(cdk.RemovalPolicy.SNAPSHOT);
+    const taskRole = new iam.Role(this, 'TaskRole', {
+      assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
+      description: 'Outbox sample task role (SQS send/consume)',
+    });
+    props.flightQueue.grantSendMessages(taskRole);
+    props.flightQueue.grantConsumeMessages(taskRole);
 
-    //Our application in AWS Fargate + ALB
-    const outboxApp = new ecs_patterns.ApplicationLoadBalancedFargateService(this, 'outbox svc', {
+    const app = new CloudFrontFargateService(this, 'OutboxApp', {
       cluster: props.outboxEcsCluster,
-      desiredCount: 2,
-      cpu: 256,
-      memoryLimitMiB: 512,
-      runtimePlatform: {
-        operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
-        cpuArchitecture: ecs.CpuArchitecture.ARM64,
+      imageDirectory: '../outbox-implementation',
+      taskRole,
+      webAclArn: props.webAclArn,
+      environment: {
+        SPRING_DATASOURCE_URL:
+          `jdbc:postgresql://${cluster.clusterEndpoint.hostname}:${cluster.clusterEndpoint.port}/${DATABASE_NAME}` +
+          '?sslmode=verify-full&sslrootcert=/app/certs/rds-global-bundle.pem',
+        SQS_QUEUE_NAME: props.flightQueue.queueName,
+        AWS_REGION: this.region,
       },
-      taskImageOptions: {
-        image: ecs.ContainerImage.fromAsset('../outbox-implementation'),// {platform: aws_ecr_assets.Platform.LINUX_AMD64}),
-        containerPort: 8080,
-        environment: {
-          'springdatasourceurl': `jdbc:postgresql://` + auroraServerlessRds.attrEndpointAddress + `:5432/outboxPattern`,
-          'springdatasourceusername': 'dbaadmin',
-          'sqsqueuename': props.flightQueue.queueName,
-          'AWS_REGION': this.region
-        },
-        secrets: {
-          'pgpassword': ecs.Secret.fromSecretsManager(pgPassword)
-        },
-        taskRole: sqsRole
+      secrets: {
+        SPRING_DATASOURCE_USERNAME: ecs.Secret.fromSecretsManager(dbSecret, 'username'),
+        SPRING_DATASOURCE_PASSWORD: ecs.Secret.fromSecretsManager(dbSecret, 'password'),
       },
-      securityGroups: [appSecurityGroup]
     });
-    dbSecurityGroup.addIngressRule(appSecurityGroup, ec2.Port.tcp(5432));
-    
-    //customize healthcheck on ALB
-    outboxApp.targetGroup.configureHealthCheck({
-      "port": 'traffic-port',
-      "path": '/',
-      "interval": cdk.Duration.seconds(5),
-      "timeout": cdk.Duration.seconds(4),
-      "healthyThresholdCount": 2,
-      "unhealthyThresholdCount": 2,
-      "healthyHttpCodes": "200,301,302"
-    })
-    
-    //autoscaling - cpu
-    const outboxAppAutoScaling = outboxApp.service.autoScaleTaskCount({
-      maxCapacity: 6,
-      minCapacity: 2
-    })
-    outboxAppAutoScaling.scaleOnCpuUtilization('CpuScaling', {
-      targetUtilizationPercent: 45,
-      policyName: "cpu autoscaling",
-      scaleInCooldown: cdk.Duration.seconds(30),
-      scaleOutCooldown: cdk.Duration.seconds(30)
-    })
-    const cfnWebACLAssociation = new wafv2.CfnWebACLAssociation(this, 'ALBWebACLAssociation', {
-      resourceArn: outboxApp.loadBalancer.loadBalancerArn,
-      webAclArn: props.webACL.attrArn,
-    });
+    cluster.connections.allowDefaultPortFrom(app.service.service, 'Outbox app');
+    // The app needs the database at startup (schema update): only create the service once the
+    // writer instance is available, otherwise early tasks crash and trip the circuit breaker.
+    // (Depend on the low-level resources only: a construct-level dependency would also cover the
+    // security group rules and create a cycle.)
+    const ecsService = app.service.service.node.defaultChild as cdk.CfnResource;
+    for (const instance of cluster.node.findAll().filter((c): c is rds.CfnDBInstance => c instanceof rds.CfnDBInstance)) {
+      ecsService.node.addDependency(instance);
+    }
+
+    const ack = (id: string, reason: string) => ({ id: `AwsSolutions::AwsSolutions-${id}`, reason });
+    Validations.of(cluster).acknowledge(
+      ack('RDS6', 'Password auth via Secrets Manager keeps the sample simple; IAM DB auth is not required.'),
+      ack('RDS10', 'Sample stack: users are expected to destroy and redeploy. A final snapshot is kept on delete.'),
+      ack('SMG4', 'ECS injects secrets only at task start; rotation without a coordinated task refresh would break the app.'),
+    );
   }
 }

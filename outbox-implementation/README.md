@@ -2,15 +2,17 @@
 
 ## Deploy the CDK code
 
+From the `infra` folder:
+
 ```shell
-cdk deploy AuroraStack
+npx cdk deploy AuroraStack -c allowedCidr=<MY_PUBLIC_IP>/32
 ```
-After about 5-10 mins, the deployment will complete and the Application Load Balancer URL will be printed. 
+After about 10-15 mins (the CloudFront distribution takes a few minutes to deploy), the deployment will complete and the HTTPS API URL (`ApiUrl` output, `https://<id>.cloudfront.net`) will be printed.
 ![StackOutput](../img/aurora-stack-output.png)
 
 ## Happy Path
 
-1. Append `swagger-ui/index.html` to the ALB URL to access the Swagger page in your browser:
+1. Append `/swagger-ui/index.html` to the API URL to access the Swagger page in your browser:
 
 ![SwaggerPage](../img/aurora-swagger-page.png)
 
@@ -19,8 +21,8 @@ After about 5-10 mins, the deployment will complete and the Application Load Bal
 {
     "departureAirport": "Paris",
     "arrivalAirport": "London",
-    "departureDateTime": "2023-09-01T08:00:00.000Z",
-    "arrivalDateTime": "2023-09-01T08:15:00.000Z"
+    "departureDateTime": "2026-12-01T08:00:00",
+    "arrivalDateTime": "2026-12-01T09:15:00"
 }
 ```
 ![FirstFlight](../img/aurora-first-flight.png)
@@ -46,18 +48,19 @@ This was the happy path - everything went according to plan. Now let's look at w
 ## SQS Failure
 
 1. For the sake of this example, we will remove the permissions for ECS to write to SQS:
-    - Navigate to the `IAM` page in the AWS Console, the click on `Roles` in the left pane. Search for the role that was created during deployment (it should look something like `xxx-sqsFullRolexxx`) and click on it.
-    - Click on the Policy and then the `Edit` button.
+    - Navigate to the `IAM` page in the AWS Console, the click on `Roles` in the left pane. Search for the task role that was created during deployment (it should look something like `AuroraStack-TaskRolexxx`) and click on it.
+    - Click on the `TaskRoleDefaultPolicy` policy and then the `Edit` button.
     - Change the effect from `Allow` to `Deny` and then click on `Next`.
     - Click on `Save Changes`
+    - Wait about a minute for the IAM change to propagate before the next step. Otherwise the event may still be delivered.
 
 2. Navigate back to the Swagger page, and book a second flight ticket (you can replace the departure, destination and dates/times as you desire):
 ```json
 {
     "departureAirport": "Paris",
     "arrivalAirport": "London",
-    "departureDateTime": "2023-09-02T08:00:00.000Z",
-    "arrivalDateTime": "2023-09-02T08:15:00.000Z"
+    "departureDateTime": "2026-12-02T08:00:00",
+    "arrivalDateTime": "2026-12-02T09:15:00"
 }
 ```
 
@@ -67,7 +70,7 @@ This was the happy path - everything went according to plan. Now let's look at w
 **Response**
 ![SecondFlight_Response](../img/aurora-second-flight_response.png)
 
-3. The booking service will record an error because the queue is unavailable.
+3. The booking still succeeds: the flight and its outbox event are committed in the same database transaction. Publishing happens asynchronously, and the outbox relay now logs an error because it is not allowed to send to the queue (filter the service logs for `not authorized to perform: sqs:sendmessage`).
 
 ![QueueUnavailable](../img/aurora-queue-unavailable.png)
 
@@ -75,14 +78,16 @@ This was the happy path - everything went according to plan. Now let's look at w
 
 ![EventStillInOutbox](../img/aurora-event-in-outbox.png)
 
-5. Subsequent to that, several strategies can be adopted depending on the requirements of the system (raise an alert, wait for the queue to become available again, retry with backoff, etc.).
+5. The relay retries with exponential backoff and keeps polling the outbox: restore the `Allow` effect on the policy and the event is delivered on the next poll (look for `Processing payment` in the logs, and the outbox table is empty again). Events that SQS rejects individually in a batch also stay in the outbox until they are accepted. Delivery is at-least-once; the outbox row ID is used as the SQS FIFO deduplication ID.
 
 ## Cleaning up
 
 Run the following command to destroy the resources:
 
+From the `infra` folder:
+
 ```shell
-cdk destroy AuroraStack
+npx cdk destroy AuroraStack -c allowedCidr=<MY_PUBLIC_IP>/32
 ```
 
 ## Viewing tables
@@ -92,10 +97,11 @@ cdk destroy AuroraStack
 3. Click on the `Action` button in the top-right corner and then on the `Query` action.
 
 Note: The first time you do so, the Console will ask you for the credentials:
-* Choose the relevant cluster in the drop down box
-* Insert the database username you have defined in the CDK file (if you have not changed it, the default is `dbaadmin`)
-* Insert the database password that has been generated when deploying the infrastructure. To get the password, you can navigate to the `Secrets Manager` page of the AWS Console, click on the relevant secret and then click on the `Retrieve secret value` button.
+* Choose the relevant cluster in the drop down box (its name starts with `aurorastack-outboxdb`)
+* Choose **Connect with a Secrets Manager ARN** and paste the ARN of the database secret generated by CDK: navigate to the `Secrets Manager` page of the AWS Console, open the secret whose name starts with `AuroraStackOutboxDbSecret` and copy its **Secret ARN** (the full ARN is required, not the name)
 * Insert the database name that you have defined in the CDK file (if you have not changed it, the default is `outboxPattern`)
+
+The tables are `flights` and `flights_outbox`, for example `SELECT * FROM flights_outbox;`.
 
 Example:
 ![FlightOutbox](../img/aurora-event.png)

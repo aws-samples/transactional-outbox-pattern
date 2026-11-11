@@ -1,27 +1,37 @@
 {
   "name": "infra",
-  "version": "0.1.0",
+  "version": "0.2.0",
+  "private": true,
+  "license": "MIT-0",
   "bin": {
     "infra": "bin/infra.js"
   },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "build": "tsc",
-    "watch": "tsc -w",
+    "build": "tsc --noEmit",
+    "watch": "tsc -w --noEmit",
     "test": "jest",
     "cdk": "cdk"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.3",
-    "@types/node": "20.4.5",
-    "jest": "^29.6.2",
-    "ts-jest": "^29.1.1",
-    "aws-cdk": "2.90.0",
-    "ts-node": "^10.9.1",
-    "typescript": "~5.1.6"
+    "@types/jest": "30.0.0",
+    "@types/node": "24.19.2",
+    "aws-cdk": "2.1148.0",
+    "jest": "30.5.2",
+    "ts-jest": "29.4.15",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
   },
   "dependencies": {
-    "aws-cdk-lib": "2.90.0",
-    "constructs": "^10.0.0",
-    "source-map-support": "^0.5.21"
+    "aws-cdk-lib": "2.275.0",
+    "cdk-nag": "3.0.2",
+    "constructs": "10.8.1",
+    "source-map-support": "0.5.21"
+  },
+  "overrides": {
+    "glob": "14.0.4",
+    "minimatch": "11.0.6"
   }
 }
