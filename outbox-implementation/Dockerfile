@@ -1,22 +1,35 @@
-# Step : Test and packages
-FROM --platform=linux/arm64 maven:3.8.3-amazoncorretto-17 as build
+# syntax=docker/dockerfile:1
+# Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+# ---- Build stage -------------------------------------------------------------
+FROM maven:3.9-amazoncorretto-21-al2023 AS build
 WORKDIR /build
 COPY pom.xml .
-RUN mvn dependency:go-offline
+RUN mvn -B -q dependency:go-offline
+COPY src ./src
+RUN mvn -B -q package -DskipTests \
+ && mkdir -p target/extracted \
+ && (cd target/extracted && jar -xf ../*.jar)
+# Amazon RDS CA bundle, used by the JDBC driver for sslmode=verify-full.
+RUN curl -fsSL --proto '=https' -o /build/rds-global-bundle.pem \
+      https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
 
-COPY src /build/src/
-RUN mvn package -DskipTests
-RUN mkdir -p target/dependency && (cd target/dependency; jar -xf ../*.jar)
+# ---- Runtime stage -----------------------------------------------------------
+FROM amazoncorretto:21-al2023-headless
+# Pick up OS security fixes published after the base image was built.
+RUN dnf -y upgrade --security --releasever=latest && dnf clean all && rm -rf /var/cache/dnf
+WORKDIR /app
+COPY --from=build /build/target/extracted/BOOT-INF/lib /app/lib
+COPY --from=build /build/target/extracted/META-INF /app/META-INF
+COPY --from=build /build/target/extracted/BOOT-INF/classes /app
+COPY --from=build /build/rds-global-bundle.pem /app/certs/rds-global-bundle.pem
 
-# Step : Package image
-FROM --platform=linux/arm64 amazoncorretto:17
-# COPY --from=build /build/target/jpademo-*.jar /app/app.jar
-# ENTRYPOINT ["java","-noverify","-XX:TieredStopAtLevel=1","-jar", "/app/app.jar"]
-
-## exploded,  faster // https://spring.io/blog/2018/12/12/how-fast-is-spring , https://github.com/dsyer/spring-boot-allocations
+# Unprivileged user; the root filesystem is read-only at runtime, only /tmp is writable.
+USER 10001:10001
+EXPOSE 8080
 VOLUME /tmp
-ARG DEPENDENCY=/build/target/dependency
-COPY --from=build ${DEPENDENCY}/BOOT-INF/lib /app/lib
-COPY --from=build ${DEPENDENCY}/META-INF /app/META-INF
-COPY --from=build ${DEPENDENCY}/BOOT-INF/classes /app
-ENTRYPOINT ["java","-noverify","-Dspring.jmx.enabled=false","-XX:TieredStopAtLevel=1","-Dspring.config.location=classpath:/application.properties","-cp","app:app/lib/*","com.amazonaws.samples.AwsOutboxSampleApplication"]
+HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=3 \
+  CMD curl -fsS http://localhost:8080/actuator/health/liveness || exit 1
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-Dspring.jmx.enabled=false", \
+            "-cp", "/app:/app/lib/*", "com.amazonaws.samples.AwsOutboxSampleApplication"]

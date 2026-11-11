@@ -1,100 +1,66 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 import * as cdk from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import * as logs from "aws-cdk-lib/aws-logs"
-import * as ec2 from "aws-cdk-lib/aws-ec2";
-import * as ecs from "aws-cdk-lib/aws-ecs";
+import * as logs from 'aws-cdk-lib/aws-logs';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
-import * as iam from 'aws-cdk-lib/aws-iam';
-import { aws_wafv2 as wafv2 } from 'aws-cdk-lib';
 
+/**
+ * Shared networking and compute cluster, plus one downstream "payment" queue per implementation.
+ * Each implementation gets its own queue so that its events are consumed by its own payment
+ * service (a shared queue would let either app pick up the other's events).
+ */
 export class BaseStack extends cdk.Stack {
-
-  public readonly webACL: wafv2.CfnWebACL;
   public readonly outboxEcsCluster: ecs.Cluster;
   public readonly vpc: ec2.Vpc;
-  public readonly flightQueue: sqs.Queue;
+  /** Events relayed by the outbox implementation (AuroraStack). */
+  public readonly outboxFlightQueue: sqs.Queue;
+  /** Events relayed by the CDC implementation (CdcStack). */
+  public readonly cdcFlightQueue: sqs.Queue;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
-
     super(scope, id, props);
 
-    // Parameters
-    const myPublicIP = new cdk.CfnParameter(this, "myPublicIP", {
-      type: "String",
-      description: "The public IP used to access the API."});
-
-    // Our VPC
-    const cwLogs = new logs.LogGroup(this, 'Log', {
-      logGroupName: '/aws/vpc/flowlogs',
+    const flowLogs = new logs.LogGroup(this, 'VpcFlowLogs', {
+      retention: logs.RetentionDays.ONE_MONTH,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
-    this.vpc = new ec2.Vpc(this, "outbox-vpc", {
+    this.vpc = new ec2.Vpc(this, 'outbox-vpc', {
       maxAzs: 2,
       natGateways: 1,
       flowLogs: {
-        's3': {
-          destination: ec2.FlowLogDestination.toCloudWatchLogs(cwLogs),
+        cloudwatch: {
+          destination: ec2.FlowLogDestination.toCloudWatchLogs(flowLogs),
           trafficType: ec2.FlowLogTrafficType.ALL,
-        }
-      }
-    });
-
-    // WebACL and WAF definition (to protect our ALB)
-    const allowListIPSet = new wafv2.CfnIPSet(this, "AllowListIPSet", {
-      name: "AllowListIPSet",
-      addresses: [myPublicIP.valueAsString],
-      ipAddressVersion: "IPV4",
-      scope: "REGIONAL",
-    });
-    const allowListIPSetRuleProperty: wafv2.CfnWebACL.RuleProperty = {
-      priority: 0,
-      name: "AllowListIPSet-Rule",
-      action: {
-        allow: {},
-      },
-      statement: {
-        ipSetReferenceStatement: {
-          arn: allowListIPSet.attrArn,
         },
       },
-      visibilityConfig: {
-        cloudWatchMetricsEnabled: true,
-        metricName: "AllowListIPSet-Rule",
-        sampledRequestsEnabled: true,
-      },
-    };
-    this.webACL = new wafv2.CfnWebACL(this, "WebAcl", {
-      name: "WebAcl",
-      defaultAction: { block: {} },
-      scope: "REGIONAL",
-      visibilityConfig: {
-        cloudWatchMetricsEnabled: true,
-        metricName: "WebAcl",
-        sampledRequestsEnabled: true,
-      },
-      rules: [allowListIPSetRuleProperty],
     });
 
-    // Our Queue
-    const flightDLQ = new sqs.Queue(this, 'FlightDLQ', {
-      queueName: 'flightDLQ.fifo'
-    });
-    this.flightQueue = new sqs.Queue(this, 'FlightQueue',
-      {
-        queueName: 'flightQueue.fifo',
-        deadLetterQueue: {
-          maxReceiveCount: 10,
-          queue: flightDLQ
-        }
-      }
-    );
+    // Construct IDs of the outbox queue pair are unchanged from earlier versions to avoid replacing it.
+    this.outboxFlightQueue = this.createFifoQueueWithDlq('FlightQueue', 'FlightDLQ');
+    this.cdcFlightQueue = this.createFifoQueueWithDlq('CdcFlightQueue', 'CdcFlightDLQ');
 
-    //Our ECS Fargate Cluster in this VPC
-    this.outboxEcsCluster = new ecs.Cluster(this, "outbox-ecs", {
+    this.outboxEcsCluster = new ecs.Cluster(this, 'outbox-ecs', {
       vpc: this.vpc,
-      clusterName: "outboxEcsCluster",
-      containerInsights: true,
-    })
-    
+      containerInsightsV2: ecs.ContainerInsights.ENABLED,
+    });
+  }
+
+  private createFifoQueueWithDlq(queueId: string, dlqId: string): sqs.Queue {
+    const dlq = new sqs.Queue(this, dlqId, {
+      fifo: true,
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      retentionPeriod: cdk.Duration.days(14),
+    });
+    return new sqs.Queue(this, queueId, {
+      fifo: true,
+      encryption: sqs.QueueEncryption.SQS_MANAGED,
+      enforceSSL: true,
+      deadLetterQueue: { maxReceiveCount: 10, queue: dlq },
+    });
   }
 }

@@ -1,36 +1,28 @@
 **/.vscode/
-**/.mvn/
 **/.idea/
 **/.DS_Store
+*.iws
+*.iml
+*.ipr
 
+# Maven: keep the wrapper configuration, ignore build output
+**/.mvn/*
+!**/.mvn/wrapper/
+**/.mvn/wrapper/*.jar
+**/target/
+**/HELP.md
+
+# CDK
 infra/*.js
-infra/!jest.config.js
+!infra/jest.config.js
 infra/*.d.ts
 infra/node_modules
-infra/package-lock.json
-
-# CDK asset staging directory
 infra/.cdk.staging
 infra/cdk.out
 
-outboxApp/HELP.md
-outboxApp/target/
-outboxApp/!.mvn/wrapper/maven-wrapper.jar
-outboxApp/!**/src/main/**/target/
-outboxApp/!**/src/test/**/target/
+# Local security scan output
+.protoshield/
 
-### IntelliJ IDEA ###
-outboxApp/*.iws
-outboxApp/*.iml
-outboxApp/*.ipr
-
-cdcApp/HELP.md
-cdcApp/target/
-cdcApp/!.mvn/wrapper/maven-wrapper.jar
-cdcApp/!**/src/main/**/target/
-cdcApp/!**/src/test/**/target/
-
-### IntelliJ IDEA ###
-cdcApp/*.iws
-cdcApp/*.iml
-cdcApp/*.ipr
+# Diagram sources (kept locally; only the exported PNGs are published)
+*.drawio
+*.drawio.bkp

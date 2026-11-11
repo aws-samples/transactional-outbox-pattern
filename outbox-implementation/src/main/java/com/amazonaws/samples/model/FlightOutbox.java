@@ -1,35 +1,52 @@
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: MIT-0
+
 package com.amazonaws.samples.model;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.SequenceGenerator;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Table(name = "flightsOutbox")
-@EntityListeners(AuditingEntityListener.class)
-@RequiredArgsConstructor
-@NoArgsConstructor(force = true)
 @Getter
-@Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class FlightOutbox {
-
     public enum EventType {
         FLIGHT_BOOKED
     }
 
+    /** Monotonic within one writer; also used as the SQS FIFO deduplication ID. */
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "outbox_seq")
+    @SequenceGenerator(name = "outbox_seq", sequenceName = "flights_outbox_seq", allocationSize = 1)
     private Long id;
 
-    private final String aggregateId;
+    @Column(nullable = false)
+    private String aggregateId;
 
     @Enumerated(EnumType.STRING)
-    private final EventType eventType;
+    @Column(nullable = false)
+    private EventType eventType;
 
-    @Column(columnDefinition = "json")
     @JdbcTypeCode(SqlTypes.JSON)
-    private final JsonNode payload;
+    @Column(nullable = false)
+    private String payload;
+
+    public FlightOutbox(String aggregateId, EventType eventType, String payload) {
+        this.aggregateId = aggregateId;
+        this.eventType = eventType;
+        this.payload = payload;
+    }
 }

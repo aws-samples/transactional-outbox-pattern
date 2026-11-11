@@ -1,0 +1,28 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /infra
+    schedule:
+      interval: monthly
+    groups:
+      aws-cdk:
+        patterns: ["aws-cdk", "aws-cdk-lib", "constructs", "cdk-nag"]
+      dev-tooling:
+        dependency-type: development
+  - package-ecosystem: maven
+    directories: ["/outbox-implementation", "/cdc-implementation"]
+    schedule:
+      interval: monthly
+    groups:
+      spring:
+        patterns: ["org.springframework*", "io.awspring*", "org.springdoc*"]
+      aws-sdk:
+        patterns: ["software.amazon*"]
+  - package-ecosystem: docker
+    directories: ["/outbox-implementation", "/cdc-implementation"]
+    schedule:
+      interval: monthly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

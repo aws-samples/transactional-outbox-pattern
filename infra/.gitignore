@@ -8,3 +8,5 @@ node_modules
 cdk.out
 
 .idea
+# Context lookups are account-specific
+cdk.context.json
